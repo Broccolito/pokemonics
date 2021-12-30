@@ -2,6 +2,7 @@ library(dplyr)
 library(readxl)
 library(combinat)
 library(progress)
+library(stringr)
 
 types = c("NORMAL",	"FIGHTING",	"FLYING",	"POISON",	"GROUND",	"ROCK",
           "BUG",	"GHOST",	"STEEL",	"FIRE",	"WATER",	"GRASS",
@@ -37,12 +38,12 @@ overall_type = tibble(
   type1 = as.vector(sapply(types, rep, 18)),
   type2 = rep(types, 18)
 )
-
 single_type_index = overall_type$type1 == overall_type$type2
 overall_type$type2[single_type_index] = NA
 
 calculate_type_combo = function(n = 3){
   battle_mat = vector()
+  cat("Generating all team combinations...\n")
   type_combos = t(combn(1:dim(overall_type)[1], n))
   cat("Simulating all team combinations...\n")
   pb = progress_bar$new(total = dim(type_combos)[1])
@@ -76,6 +77,26 @@ calculate_type_combo = function(n = 3){
     pb$tick()
   }
   
+  cat("Annotating all team combinations...\n")
+  team_combo_list = vector()
+  for(i in battle_mat$combo_index){
+    specific_combo = overall_type[type_combos[i,],]
+    team_combo = ""
+    for(j in 1:dim(specific_combo)[1]){
+      team_combo = paste(team_combo,
+                         specific_combo[j,] %>%
+                           unlist() %>%
+                           na.omit() %>%
+                           paste(collapse = "|"),
+                         sep = ";")
+    }
+    team_combo = str_sub(team_combo,start = 2)
+    team_combo_list = c(team_combo_list, team_combo)
+  }
+  battle_mat = battle_mat %>%
+    mutate(team = team_combo_list) %>%
+    select(team, everything())
+  
   cat("Annotating battle summary matrix...\n")
   annotated_battle_matrix = battle_mat %>%
     mutate(offense_sum = offense_noeffect_n*0 + 
@@ -92,10 +113,16 @@ calculate_type_combo = function(n = 3){
     mutate(defense_ranking = 1:dim(battle_mat)[1]) %>%
     mutate(overall_ranking = offense_ranking+defense_ranking) %>%
     arrange(overall_ranking) %>%
-    mutate(battle_premium = offense_sum/defense_sum)
+    mutate(battle_premium = offense_sum/defense_sum) %>%
+    select(team, offense_sum:battle_premium)
   
   cat("Done!\n")
   return(annotated_battle_matrix)
 }
 
-calculate_type_combo(2)
+team_n1 = calculate_type_combo(1)
+team_n2 = calculate_type_combo(2)
+team_n3 = calculate_type_combo(3)
+team_n4 = calculate_type_combo(4)
+team_n5 = calculate_type_combo(5)
+team_n6 = calculate_type_combo(6)
